@@ -10,7 +10,7 @@ const firebaseConfig = {
 };
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-console.log('firebase', firebase);
+
 // Создаем переменную, в которую положим кнопку меню
 let menuToggle = document.querySelector('#menu-toggle');
 // Создаем переменную, в которую положим меню
@@ -36,43 +36,56 @@ const userAvatarElem = document.querySelector ('.user-avatar');
 const postsWrapper = document.querySelector('.posts');
 const buttonNewPost = document.querySelector('.button-new-post');
 const addPostElem = document.querySelector('.add-post'); //форма поста 
-
-const listUsers = [
-  {
-    id: '01',
-    email: 'maks@mail.com',
-    password: '12345',
-    displayName: 'maks',
-    photo: 'https://i.pinimg.com/originals/3f/bb/d7/3fbbd7a479d80c7f2fd52238182e7601.jpg'
-  },
-  {
-    id: '02',
-    email: 'kate@mail.com',
-    password: '123456',
-    displayName: 'kate'
-  }
-];
+const loginForget = document.querySelector('.login-forget');
+const DEFAULT_PHOTO = userAvatarElem.src;
 
 const setUsers = {
   user: null,
+  initUser(handler) {
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        this.user=user;
+      } else {
+        this.user=null;
+      }
+      if (handler) handler();
+    })
+  },
   logIn(email, password, handler) {
    if (!regExpValidEmail.test(email)) {
       alert('email не валиден');
       return;
     }
-    
+
+    firebase.auth().signInWithEmailAndPassword(email,password)
+    .catch(err => {
+      const errCode = err.code;
+        const errMessage = err.message;
+        if (errCode === 'auth/wrong-password') {
+          console.log(errMessage);
+          alert('Неверный пароль')
+        } else if (errCode === 'auth/user-not-found') {
+          console.log(errMessage);
+          alert('Пользователь не найден')
+        } else {
+          alert(errMessage)
+        }
+        console.log(err);
+    })
+
+    /*
     const user = this.getUser(email);
     if (user && user.password === password) {
       this.authorizedUser(user);
       handler();
     } else {
       alert('Пользователь с такими данными не найден')
-    }
+    }*/
 
   },
-  logOut(handler) {
-    this.user = null;
-    handler();
+  logOut() {
+    firebase.auth().signOut();
+    
   },
   signUp(email, password, handler) {
     if (!regExpValidEmail.test(email)) {
@@ -85,6 +98,26 @@ const setUsers = {
       return;
     }
 
+    firebase.auth()
+      .createUserWithEmailAndPassword(email, password)
+      .then(data=>{
+        this.editUser(email.split('@')[0], null, handler)
+      })
+      .catch((err)=>{
+        const errCode = err.code;
+        const errMessage = err.message;
+        if (errCode === 'auth/weak-password') {
+          console.log(errMessage);
+          alert('Слабый пароль')
+        } else if (errCode === 'auth/email-already-in-use') {
+          console.log(errMessage);
+          alert('Этот email уже используется')
+        } else {
+          alert(errMessage)
+        }
+          console.log(errMessage);
+      });
+    /*
     if (!this.getUser(email)) {
       const user = {email, password, displayName: email.split('@')[0] };
       listUsers.push(user);
@@ -93,74 +126,83 @@ const setUsers = {
     } else {
       alert('Пользователь с таким email уже зарегистрирован')
     }
+    */
   },
-  editUser(userName, userPhoto, handler) {
-    if (userName) {
-      this.user.displayName = userName;
-    }
+  editUser(displayName, photoURL, handler) {
     
-    if (userPhoto) {
-      this.user.photo = userPhoto; 
-    }
+    const user = firebase.auth().currentUser;
     
-    handler();
+    if (displayName) {
+      if (photoURL) {
+        user.updateProfile({
+          displayName,
+          photoURL
+        }).then(handler) 
+      } else {
+        user.updateProfile({
+          displayName
+      }).then(handler) 
+    }
+  }
+   
   },
 
+  sendForget(email) {
+    firebase.auth().sendPasswordResetEmail(email)
+    .then(() =>{
+      alert('Письмо отправлено');
+    })
+    .catch(err => {
+      console.log(err);
+    })
+  }
+/*
   getUser(email) {
     return listUsers.find(item => item.email === email)
   },
   authorizedUser(user) {
     this.user = user;
-  } 
+  }
+  */ 
 };
 
+loginForget.addEventListener('click', event =>{
+  event.preventDefault();
+  setUsers.sendForget(emailInput.value);
+  emailInput.value = ''; 
+  
+})
+
 const setPosts = {
-  allPosts: [
-    {
-      title: 'Заголовок поста',
-      text: 'Далеко-далеко за словесными горами в стране гласных и согласных живут рыбные тексты. Языком что рот маленький реторический вершину текстов обеспечивает гор свой назад решила сбить маленькая дорогу жизни рукопись ему букв деревни предложения, ручеек залетают продолжил парадигматическая? Но языком сих пустился, запятой своего его снова решила меня вопроса моей своих пояс коварный, власти диких правилами напоивший они текстов ipsum первую подпоясал? Лучше, щеке подпоясал приставка большого курсивных на берегу своего? Злых, составитель агентство что вопроса ведущими о решила одна алфавит!',
-      tags:['свежее','новое','горячее','мое','случайность'],
-      author: {displayName: 'maks', photo: 'https://i.pinimg.com/originals/3f/bb/d7/3fbbd7a479d80c7f2fd52238182e7601.jpg'},
-      date: '11.11.2020, 20:54:00',
-      like: 15,
-      comments: 20,
-    },
-    {
-      title: 'Заголовок поста2',
-      text: 'Первый 13-дюймовый MacBook Pro с чипом Apple Silicon заменяет младшие модели с процессорами Intel и двумя портами Thunderbolt. Новый чип Apple M1 может похвастаться более мощным 8-ядерным процессором и 8-ядерным графическим процессором с 16-ядерным Neural Engine, благодаря чему новый MacBook Pro в 3 раза превышает производительность самого продаваемого ноутбука под управлением Windows.',
-      tags:['свежее','новое','мое','случайность'],
-      author: {displayName: 'kate', photo: 'https://images11.cosmopolitan.ru/upload/img_cache/61a/61a8f4cd9980b453813a29ec496e32ef_ce_1080x716x0x73.jpg'},
-      date: '10.11.2020, 20:54:00',
-      like: 45,
-      comments: 15,
-    },
-    {
-      title: 'Заголовок поста3',
-      text: 'Далеко-далеко за словесными горами в стране гласных и согласных живут рыбные тексты. Языком что рот маленький реторический вершину текстов обеспечивает гор свой назад решила сбить маленькая дорогу жизни рукопись ему букв деревни предложения, ручеек залетают продолжил парадигматическая? Но языком сих пустился, запятой своего его снова решила меня вопроса моей своих пояс коварный, власти диких правилами напоивший они текстов ipsum первую подпоясал? Лучше, щеке подпоясал приставка большого курсивных на берегу своего? Злых, составитель агентство что вопроса ведущими о решила одна алфавит!',
-      tags:['свежее','новое','мое','случайность'],
-      author: {displayName: 'vasya', photo: 'https://news24ua.com/sites/default/files/94441756_3149492175081864_5956473899808980992_o.jpg'},
-      date: '09.11.2020, 20:54:00',
-      like: 25,
-      comments: 5,
-    }
-  ],
+  allPosts: [],
   addPost(title, text, tags, handler ) {
+
+    const user = firebase.auth().currentUser;
+
     this.allPosts.unshift({
+      id: `postID${(+new Date()).toString(16)}-${user.uid}`,
       title,
       text,
       tags: tags.split(',').map(item => item.trim()),
       author: {
         displayName: setUsers.user.displayName,
-        photo: setUsers.user.photo,
+        photo: setUsers.user.photoURL,
       },
       date: new Date().toLocaleString(),
       like: 0,
       comments: 0,
     })
 
-    if (handler) {
+    firebase.database().ref('post').set(this.allPosts)
+      .then(()=>this.getPosts(handler))
+      
+    
+  },
+  getPosts(handler) {
+    firebase.database().ref('post').on('value', snapshot => {
+      this.allPosts = snapshot.val() || [];
       handler();
-    }
+    })
   }
 };
 
@@ -172,7 +214,7 @@ const toggleAuthDom = () => {
     loginElem.style.display = 'none';
     userElem.style.display = '';
     userNameElem.textContent = user.displayName;
-    userAvatarElem.src = user.photo || userAvatarElem.src;
+    userAvatarElem.src = user.photoURL || DEFAULT_PHOTO;
     buttonNewPost.classList.add('visible');
     } else { 
     loginElem.style.display = '';
@@ -202,8 +244,6 @@ const showAllPosts = () => {
           <p class="post-text">${text}</p>
           <div class="tags">
             ${tags.map( tag => `<a href="#" class="tag">#${tag}</a>`) }
-           
-            
           </div>
         
         </div>
@@ -281,7 +321,7 @@ loginSignup.addEventListener('click', event => {
 //выход 
 exitElem.addEventListener('click', event => {
     event.preventDefault();
-    setUsers.logOut(toggleAuthDom);
+    setUsers.logOut();
     
 });
 
@@ -331,8 +371,10 @@ addPostElem.addEventListener('submit', event=> {
     addPostElem.reset();
 });
 
+  setUsers.initUser(toggleAuthDom);
+  setPosts.getPosts(showAllPosts);
   showAllPosts();
-  toggleAuthDom();
+  
 }
 
 document.addEventListener('DOMContentLoaded', init)
